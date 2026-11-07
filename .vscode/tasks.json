@@ -1,0 +1,134 @@
+{
+  "version": "2.0.0",
+  "presentation": {
+    "reveal": "always",
+    "panel": "dedicated",
+    "clear": true
+  },
+  "tasks": [
+    {
+      "label": "仿真：计数器（第 2 天）",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "counter4"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "counter4"]
+      },
+      "group": {"kind": "build", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "波形：打开计数器波形",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "wave"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "wave"]
+      },
+      "dependsOn": "仿真：计数器（第 2 天）",
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "仿真：选择器（第 1 天）",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "mux2"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "mux2"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "仿真：安全停止门（第 2 天）",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "safety_gate"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "safety_gate"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Chisel：生成安全门 RTL（第 3 天）",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "chisel"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "chisel"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Python：进程与策略示例（第 4-5 天）",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "python"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "python"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "检查：全部 RTL 示例",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "rtl"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "rtl"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "语法：Verilog 综合示例",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "syntax_basics"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "syntax_basics"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "语法：Chisel 综合示例生成 RTL",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "chisel_syntax"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "chisel_syntax"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "语法：仿真已有 Chisel 综合示例",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "syntax_chisel"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "syntax_chisel"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "检查：仿真环境版本",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/学习资料/配套示例/vscode_run.py", "check"],
+      "windows": {
+        "command": "wsl.exe",
+        "args": ["-d", "Ubuntu-24.04", "--cd", "${workspaceFolder}", "--exec", "python3", "学习资料/配套示例/vscode_run.py", "check"]
+      },
+      "problemMatcher": []
+    }
+  ]
+}

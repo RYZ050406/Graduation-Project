@@ -1,5 +1,6 @@
 """Render the five Chinese study booklets with embedded fonts and bookmarks."""
 from pathlib import Path
+import argparse
 import html
 import json
 import re
@@ -341,6 +342,12 @@ def parse(markdown):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--combined-output", default="五天基础学习资料_合订本_含语法补充.pdf",
+                        help="Combined PDF filename; use another name if a viewer locks the previous file")
+    args = parser.parse_args()
+    if Path(args.combined_output).name != args.combined_output or not args.combined_output.endswith(".pdf"):
+        parser.error("--combined-output must be a PDF filename, not a path")
     manifest = []
     for source in sorted(SOURCE.glob("[0-9][0-9]_*.md")):
         markdown = source.read_text(encoding="utf-8")
@@ -359,7 +366,7 @@ def main():
                       import_outline=True)
     merged.add_metadata({"/Title": "五天基础学习资料 | 合订本",
                          "/Author": "学习资料", "/Subject": "零基础 · RTL / Chisel / 进程 / 技术目标"})
-    merged_path = ROOT / "五天基础学习资料_合订本.pdf"
+    merged_path = ROOT / args.combined_output
     with merged_path.open("wb") as stream:
         merged.write(stream)
     manifest.append({"file": merged_path.name, "pages": len(PdfReader(merged_path).pages)})

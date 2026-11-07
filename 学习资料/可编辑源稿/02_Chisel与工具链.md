@@ -31,6 +31,8 @@ Verilog / SystemVerilog RTL
 
 Chisel 不是把任意 Scala 算法自动变成硬件。你要使用 Chisel 提供的构件，明确描述寄存器、连接与计算关系。[C1][C5]
 
+常量、连接、比较等语法可查本册后半部分 C1-C7；先读小例子，再按需查阅。
+
 <!-- PAGE -->
 # 2.1 只学够用的 Scala
 ## 六种写法就能读入门模块
@@ -266,3 +268,248 @@ io.allow := io.request && io.authorized && !io.paused
 官方文档会更新。这里固定的教学版本用于示例复现；后续工程选型应核对导师平台与依赖兼容性。
 
 制作验证：本例已在 Ubuntu / WSL 实际生成 RTL，并用 Icarus 通过与手写停止门相同的定向测试；未进行 FPGA 验证。详细环境见配套验证记录。
+
+<!-- PAGE -->
+# 语法补充 C1：Scala 外壳与硬件类型
+## 必学：同一份文件里有两种层次
+
+```scala
+import chisel3._
+import chisel3.util._
+
+class Pass8 extends Module {
+  val io = IO(new Bundle {
+    val in = Input(UInt(8.W))
+    val out = Output(UInt(8.W))
+  })
+  io.out := io.in
+}
+```
+这是完整模块定义，生成入口和依赖需要另行配置。import 引入库中名字，util 包含 Cat、switch 等工具。class 定义类型，extends Module 表示这是 Chisel 模块；花括号组织代码块。多数语句不必写分号。
+
+## 从内向外读一个端口
+`UInt(8.W)` 是“8 位无符号硬件类型”；Input 表示方向；Bundle 将端口打包；IO 将其定义为模块接口；`val io = ...` 给接口对象起名。访问里面的端口写 io.in 或 io.out。[C7]
+
+## 常量与类型速查
+| 写法 | 含义 | 与 Verilog 对照 |
+| Bool() | 1 位布尔硬件类型 | 单 bit 条件信号 |
+| UInt(8.W) | 8 位无符号硬件类型 | 8 位无符号向量 |
+| SInt(8.W) | 8 位有符号硬件类型 | signed 向量 |
+| 12.U(8.W) | 8 位无符号常量 12 | 8'd12 |
+| "h0C".U(8.W) | 十六进制常量 | 8'h0C |
+| "b1100".U(8.W) | 二进制常量 | 8'b00001100 |
+| true.B、false.B | 硬件布尔常量 | 1'b1、1'b0 |
+
+`val width = 8` 中的 8 是 Scala 整数，常用于决定生成结构；`8.U` 则是硬件数值。`//` 与 `/* ... */` 都可写注释；名字区分大小写。不要把 val 理解成“硬件值永远不变”。
+
+<!-- PAGE -->
+# 语法补充 C2：连接、比较与位运算
+## 必学：=、:=、=== 分别做什么
+
+| 写法 | 实际含义 | 例子 |
+| val x = ... | Scala 建立名字与对象的绑定 | val x = Wire(UInt(8.W)) |
+| x := y | 描述硬件连接或更新输入 | io.out := io.in |
+| x === y | 硬件相等比较，结果是 Bool | io.a === io.b |
+| x =/= y | 硬件不等比较 | io.a =/= 0.U |
+| x <= y | 硬件小于等于比较 | io.count <= 10.U |
+
+Chisel 的 `<=` 不承担 Verilog 非阻塞赋值的作用。寄存器用 `:=` 描述更新关系；保存状态的能力来自 Reg / RegInit，而不是从某一种赋值符号自动推断。[C8]
+
+```scala
+val same = io.a === io.b
+val allowed = io.request && !io.stopped
+val bits = io.a & io.b
+val inverse = ~io.a
+val low = io.a(3, 0)
+val first = io.a(0)
+val joined = Cat(io.a(3, 0), io.b(3, 0))
+```
+此处是假定端口已声明的片段。`&&`、`||`、`!` 用于 Bool 的逻辑运算；`&`、`|`、`^`、`~` 用于按位运算。切片用圆括号，单 bit 用 a(0)；Cat 的第一个参数放在高位。
+
+## 两个容易看错的地方
+在 Chisel 中用 `===` 比较硬件，不能照抄 Verilog 的 `==`。而 Verilog 里的 `===` 常用于包含 X/Z 的严格仿真比较；不要把两门语言相同符号的所有语义画等号。
+
+`x.asUInt` 是将位按无符号解释，`x.asSInt` 是按有符号解释，不会凭空增加精度。例如 8 位全 1 按 UInt 为 255，按二进制补码 SInt 为 -1。
+
+复杂条件用括号，例如 `(io.a === io.b) && io.enable`。若看到类型错误，先看你把 Scala Boolean 与硬件 Bool 混在一起没有。
+
+<!-- PAGE -->
+# 语法补充 C3：Wire、Reg 与分支
+## 必学：让不同构件承担不同职责
+
+| 构件 | 记忆能力 | 本周怎样用 |
+| Wire(UInt(8.W)) | 无 | 稍后连接的组合中间信号 |
+| WireDefault(0.U(8.W)) | 无 | 带默认连接的组合信号 |
+| Reg(UInt(8.W)) | 有 | 寄存器，但这里未规定复位值 |
+| RegInit(0.U(8.W)) | 有 | 复位时回到 0 的寄存器 |
+| RegNext(io.in) | 有 | 把输入延迟一个采样周期 |
+
+`WireDefault` 的“默认”是电路连接的默认选择，不是“开机只赋一次值”。组合信号需要完整连接；寄存器可在某些条件下不更新，保持原值。[C4]
+
+```scala
+val y = WireDefault(0.U(8.W))
+when(io.enable) {
+  y := io.a
+}.elsewhen(io.fallback) {
+  y := io.b
+}.otherwise {
+  y := 0.U
+}
+io.y := y
+```
+when / elsewhen / otherwise 依次描述条件选择，前面的条件优先。上例在 enable 与 fallback 同为真时选择 a；如果只是二选一，可用 `io.y := Mux(io.sel, io.b, io.a)`。[C10]
+
+```scala
+val count = RegInit(0.U(4.W))
+when(io.enable) { count := count + 1.U }
+```
+这是状态更新片段，Module 提供相应时钟与复位。读右侧 count 时取当前状态，写左侧时描述寄存器下一状态的输入，不会形成“自己加自己直到无穷”的组合循环。
+
+## Scala if 与 Chisel when
+`if (width == 8)` 由生成时的 Scala 参数决定要构造什么；`when(io.enable)` 由硬件运行时输入决定电路选择。不能把 Bool 直接放进 Scala if 充当 Boolean。构造时与电路运行时应始终分开。
+
+<!-- PAGE -->
+# 语法补充 C4：模块实例、参数与数组
+## 必学：把小电路接到大电路
+
+```scala
+val gate = Module(new SafetyGate)
+gate.io.request := io.request
+gate.io.authorized := io.authorized
+gate.io.killReq := io.killReq
+io.allow := gate.io.allow
+```
+假定这段放在父模块内，且父接口已声明。Module(new ...) 实例化已有模块；gate 是实例名。子模块输入在左边接父输入，父输出在左边接子输出。常规 Module 子模块还会继承相应的时钟和复位上下文。[C9]
+
+## Scala 构造参数决定结构
+```scala
+class PassN(width: Int) extends Module {
+  require(width > 0)
+  val io = IO(new Bundle {
+    val in = Input(UInt(width.W))
+    val out = Output(UInt(width.W))
+  })
+  io.out := io.in
+}
+```
+实例化时 `Module(new PassN(8))` 生成 8 位版本。require 在生成时检查参数。width 是 Scala Int，没有形成一个运行中能改变宽度的输入端口。
+
+## 选读：Vec 与生成循环
+```scala
+val lanes = Wire(Vec(4, UInt(8.W)))
+for (i <- 0 until 4) {
+  lanes(i) := i.U(8.W)
+}
+io.out := lanes(io.index)
+```
+假定 io.index 为 2 位 UInt，io.out 为 8 位 UInt。Vec 包含四个 8 位元素；until 4 不包括 4。循环生成四项连接，动态索引则形成选择逻辑，不代表逐个时钟遍历。[C11]
+
+`Vec(4, UInt(8.W))` 是四项 8 位数据；`UInt(4.W)` 是一个 4 位数。涉及存储容量更大或多端口时再学习 Mem 等结构，本周先能区分这两种表达。
+
+<!-- PAGE -->
+# 语法补充 C5：switch 与加法位宽
+## 必学：直接对照 Verilog case
+
+```scala
+val y = WireDefault(0.U(8.W))
+switch(io.op) {
+  is(0.U) { y := io.a + io.b }
+  is(1.U) { y := io.a & io.b }
+  is(2.U) { y := Cat(io.a(3, 0), io.b(3, 0)) }
+}
+io.y := y
+```
+假定 a、b 和 y 为 8 位、op 为 2 位，已经 import chisel3.util._。没有匹配 is 时，y 使用之前给定的默认连接；这里是 0。可将它与 V6 中 case 的四种输出一一核对。
+
+## + 与 +& 的区别
+```scala
+val truncated = io.a + io.b
+val full = io.a +& io.b
+```
+当两个输入都是 8 位 UInt，第一种加法结果为 8 位，第二种扩展为 9 位。a=240、b=60 时，分别得到 44 和 300。即使把已经截断的结果接到 9 位输出，也不能找回丢掉的进位。[C12]
+
+因此完整示例使用：
+```scala
+io.sumFull := io.a +& io.b
+```
+sumFull 的端口也声明为 9 位。端口、计算与接收寄存器三处位宽都要检查。初学时把端口和状态位宽写清楚，其他推断等熟练后再用。
+
+## 常见错误的改法
+| 容易写错 | 应先这样检查 |
+| 用 a == b 比较硬件 | 改为 a === b，结果应为 Bool |
+| 用 Scala if 判断 io.enable | 改为硬件 when 或 Mux |
+| Wire 没有覆盖所有路径 | 提供默认连接或完整分支 |
+| 只扩输出端口，不扩加法 | 需要进位时用 +& 并检查目标宽度 |
+| 改 width 后期待旧 FPGA 自动变化 | 需要重新生成与实现 |
+
+<!-- PAGE -->
+# 语法补充 C6：运行与 Verilog 同功能的电路
+## 动手：先对照功能，再对照文本
+
+配套 SyntaxBasics.scala 的完整接口与 V6 相同，主要逻辑如下。构建入口名是 EmitSyntaxBasics；不要误用前面安全门的入口名。
+
+完整文件的 `_root_.circt...` 表示从根包查找生成工具，避免与 util 中同名包混淆；先知道用途，不必背这段导入路径。
+
+```scala
+val y = WireDefault(0.U(8.W))
+switch(io.op) {
+  is(0.U) { y := io.a + io.b }
+  is(1.U) { y := io.a & io.b }
+  is(2.U) { y := Cat(io.a(3, 0), io.b(3, 0)) }
+}
+io.y := y
+io.sumFull := io.a +& io.b
+val count = RegInit(0.U(4.W))
+when(io.enable) { count := count + 1.U }
+io.count := count
+```
+
+## 第一步：生成 RTL
+VS Code“终端 → 运行任务 → 语法：Chisel 综合示例生成 RTL”。任务会选择本机已有的 Java 21；也可在配套目录直接执行：
+```bash
+scala-cli run chisel_project.scala SyntaxBasics.scala \
+  --main-class EmitSyntaxBasics --server=false --jvm 21
+```
+此前 JDK 下载若卡住，仍可用 05 介绍的 --java-home 指向已有 Java 21。首次运行库和后端需要网络。
+
+## 第二步：仿真已附带的生成模块
+```bash
+python3 run_examples.py rtl --example syntax_chisel
+```
+它使用 SyntaxBasics.generated.sv 和端口适配器，复用 V6 的同一仿真文件。这个命令检查仓库已有的生成结果，不自动把刚打印的多文件文本覆盖进去。
+
+两种实现应满足相同输入输出与计数规则。生成工具可能化简内部逻辑，不能要求生成文本与手写 Verilog 完全一样。当前实验验证指定功能与输入集合，不等于完整系统安全证明。
+
+<!-- PAGE -->
+# 语法补充 C7：两种语言对照与自测
+## 先用已知 Verilog 读懂 Chisel
+
+| 要表达什么 | Verilog / SystemVerilog | Chisel |
+| 8 位输入 | input wire [7:0] a | val a = Input(UInt(8.W)) |
+| 8 位常量 12 | 8'd12 | 12.U(8.W) |
+| 组合选择 | sel ? b : a | Mux(sel, b, a) |
+| 低四位 | a[3:0] | a(3, 0) |
+| 拼接 | {a,b} | Cat(a,b) |
+| 普通硬件相等判断 | a == b | a === b |
+| 带复位寄存器 | 时钟 always、复位分支、非阻塞赋值 | RegInit 与 when、:= |
+| 组合默认值 | always 块开头赋默认值 | WireDefault 或显式默认连接 |
+
+这些是入门对应关系，不是逐字符翻译规则。特别是 Chisel `:=` 接在 Wire 还是 Reg 上，决定它描述的是组合连接还是寄存器更新输入。
+
+## 自测与答案
+1. val 会阻止寄存器更新吗？不会，它固定 Scala 名字的绑定。
+2. 已丢进位的结果接到宽输出能恢复吗？不能，应使用 +&。
+3. a=8'hF0、b=8'h3C、op=2，y 是多少？8'h0C，取低四位拼接。
+
+## 官方语法入口
+[C7] 数据类型：https://www.chisel-lang.org/docs/explanations/data-types
+
+[C8] 运算符：https://www.chisel-lang.org/docs/explanations/operators
+
+[C9] 模块：https://www.chisel-lang.org/docs/explanations/modules
+
+[C10] 选择器：https://www.chisel-lang.org/docs/explanations/muxes-and-input-selection
+
+[C11] 数组：https://www.chisel-lang.org/docs/explanations/bundles-and-vecs
+
+[C12] 位宽：https://www.chisel-lang.org/docs/explanations/width-inference

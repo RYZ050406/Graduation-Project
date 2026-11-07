@@ -25,6 +25,8 @@ assign q = c | d;
 
 > 必学：先把代码画成“输入 → 逻辑 → 输出”。本册所有电路都很小，不要求理解完整 CPU。
 
+新增的“语法补充 V1-V7”在本册后半部分，带独立书签。第一次读代码时先查 V1-V3，遇到模块连接和仿真文件时查 V4-V5，V6-V7 用于动手巩固。示例中的片段不一定能单独编译，完整可运行文件另行标出。
+
 <!-- PAGE -->
 # 1.1 二进制、位宽与数值
 ## 一个 bit 能表达两个状态
@@ -423,3 +425,255 @@ else if (enable && ________) count <= count + 4'd1;
 [C4] Chisel 时序电路：https://www.chisel-lang.org/docs/explanations/sequential-circuits
 
 本册代码与练习为教学编写，完整测试文件位于“配套示例”。阅读来源用于核对工具和语言概念，没有照搬其完整教程。
+
+<!-- PAGE -->
+# 语法补充 V1：读懂模块与信号
+## 必学：先分清哪是名字，哪是语法
+
+```verilog
+// This is a single-line comment.
+module gate8(
+  input wire [7:0] data,
+  input wire enable,
+  output wire [7:0] out
+);
+  assign out = enable ? data : 8'd0;
+endmodule
+```
+这是完整的组合模块。gate8、data、enable、out 都是作者起的名字；module、input、wire、assign 是语言规定的关键字。大小写敏感，enable 与 Enable 是两个名字。
+
+模块端口放在圆括号内，各项用逗号分开，最后一项不加逗号；声明和赋值一般以分号结束。`//` 后到行末是注释，`/* ... */` 是块注释，不参与电路功能。
+
+## wire、reg、logic 怎么区分
+| 写法 | 本周怎样理解 | 注意什么 |
+| wire | 连接信号的网络 | 常接 assign 或子模块输出 |
+| reg | 传统 Verilog 的过程赋值变量 | 在 always 中赋值，不必然是寄存器 |
+| logic | SystemVerilog 的常用四态数据类型 | 可描述组合或时序变量，仍需看驱动方式 |
+| integer | 整数变量 | 测试中常用于循环下标 |
+
+本资料的 .sv 文件启用 SystemVerilog，但保留 wire / reg 以便你对照原有经验。初学时遵循“一个信号由一处明确逻辑驱动”，不要让多个 always 随意写同一变量。
+
+## 位宽与常量速查
+`[7:0]` 是从编号 7 到 0，共 8 位；最高编号不等于位数。`8'd12`、`8'h0C`、`8'b00001100` 表示同一个 8 位无符号值。d、h、b 分别代表十进制、十六进制和二进制。
+
+`1'b0` 是一个 bit 的 0；`8'bxxxx_xxxx` 表示仿真中的未知位，`z` 表示高阻态。X 不是可以随便当作 0 使用的“默认值”。初学示例尽量明确写出位宽和复位。
+
+小练习：把 gate8 改成 4 位需要改哪些地方？答案：两个 `[7:0]` 改为 `[3:0]`，零常量改为 `4'd0`，模块名可自行改为 gate4。
+
+<!-- PAGE -->
+# 语法补充 V2：运算、取位与拼接
+## 必学：相似的符号，可能算出不同结果
+
+| 写法 | 含义 | 本周常见用途 |
+| +、- | 加、减 | 计算下一状态 |
+| ==、!= | 相等、不相等 | 判断状态 |
+| ===、!== | 含 X / Z 的严格比较 | 测试输出 |
+| <、<=、>、>= | 大小比较 | 上限判断 |
+| &&、! | 逻辑与、逻辑非 | 判断条件 |
+| &、~、^ | 按位与、非、异或 | 逐 bit 计算 |
+
+逻辑或写 `||`，按位或写 `|`；左移和右移写 `<<`、`>>`。逻辑运算判断是否为零，按位运算逐位计算；对多位数据，两者结果可能不同。
+
+```verilog
+// Assume a = 4'b1010 and b = 4'b0101.
+assign bit_result = a & b;       // 4'b0000
+assign logical_result = a && b; // 1'b1
+assign low_nibble = data[3:0];
+assign highest_bit = data[7];
+assign joined = {a, b};         // 8'b10100101
+assign repeated = {4{1'b1}};    // 4'b1111
+```
+花括号表示拼接，左边参数放高位。a、b 各 4 位，`{a,b}` 共 8 位；`{4{1'b1}}` 得到四个 1。
+
+## 三目选择与括号
+```verilog
+assign out = enable ? data : 8'd0;
+assign allow = request && authorized && !stopped;
+```
+三目表达式描述选择器。复杂条件用括号明确分组，例如 `(a == b) && enable`。
+
+## 保留进位时要明确扩宽
+若 a、b 各 8 位，本例使用 `{1'b0,a} + {1'b0,b}` 得到 9 位加法。240+60=300，8 位结果只保留 44，9 位结果可以保存 300。不要仅凭常量写法猜测表达式位宽。
+
+<!-- PAGE -->
+# 语法补充 V3：赋值与条件分支
+## 必学：先问是否需要保存状态
+
+```verilog
+reg [7:0] y;
+always @(*) begin
+  y = 8'd0;
+  if (enable) begin
+    y = a;
+  end
+end
+```
+这是模块内部的组合逻辑片段，假定 enable、a 已声明。`@(*)` 表示相关输入变化时重新求值；先给默认值，再按条件覆盖。enable=0 时输出也是确定的，不会无意保留旧值。
+
+如果有多种选择，可用 case：
+```verilog
+always @(*) begin
+  case (op)
+    2'd0: y = a;
+    2'd1: y = b;
+    default: y = 8'd0;
+  endcase
+end
+```
+`case ... endcase` 按值选择，default 处理未列出的情况。`begin ... end` 将多条语句组成一个块；if 只控制下一条语句或紧随的整个块。
+
+## 时序逻辑用时钟沿触发
+```verilog
+always @(posedge clk) begin
+  if (reset) q <= 8'd0;
+  else if (enable) q <= d;
+end
+```
+此处 `<=` 是非阻塞赋值：在采样沿根据旧状态计算，再安排状态更新。未命中分支时寄存器保持旧值。对比 `if (a <= b)` 中的 `<=`，那里是“小于等于”比较。
+
+入门习惯：组合过程用 `=`，时钟过程用 `<=`；不要对同一个变量混用两者。SystemVerilog 常用 `always_comb` 对应组合过程，`always_ff @(posedge clk)` 对应时钟过程，变量常声明为 logic。
+
+课题联系：停止与恢复谁优先，由 if / else if 顺序决定。先写清规则，再写分支，不要靠看起来相似的代码猜行为。[V3]
+
+<!-- PAGE -->
+# 语法补充 V4：实例、参数与循环
+## 必学：模块定义一次，可以使用多次
+
+```verilog
+mux2 u_select(
+  .a(left), .b(right),
+  .sel(choose), .y(result)
+);
+```
+这是已有 mux2 的实例化片段。mux2 是模块类型，u_select 是这一个实例的名字。`.a(left)` 表示“子模块端口 a 接当前模块信号 left”；点左侧是子模块端口名，括号里是本层信号。
+
+配套仿真文件里的 `dut` 也是实例名，常表示被测设计。SystemVerilog 的 `dut(.*)` 表示按同名自动连接；初学先用显式端口连接读清楚，再理解缩写。
+
+## parameter：构建时决定电路规模
+```verilog
+module pass_data #(parameter WIDTH = 8)(
+  input wire [WIDTH-1:0] in_data,
+  output wire [WIDTH-1:0] out_data
+);
+  assign out_data = in_data;
+endmodule
+```
+完整模块默认是 8 位。实例化时可用 `pass_data #(.WIDTH(4)) u_pass(...)` 改成 4 位，省略号处需补实际端口。参数在构建电路时确定，不是运行中每个时钟沿可随意改变的控制信号。[V4]
+
+## 选读：generate 的循环生成
+```verilog
+genvar i;
+generate
+  for (i = 0; i < 4; i = i + 1) begin : g_copy
+    assign out_bits[i] = in_bits[i];
+  end
+endgenerate
+```
+假定输入输出各 4 位。这是生成四条连接，不是让一根导线在四个时钟内依次工作。仿真文件中的普通 for 循环若带 `#1`，则可按仿真时间依次制造输入。
+
+不要用“出现了 for”判断是否消耗多个周期；要看它位于生成结构、组合逻辑还是测试过程，以及是否有明确状态与时序控制。
+
+<!-- PAGE -->
+# 语法补充 V5：读懂你的仿真文件
+## 必学：testbench 就是你以前写的仿真文件
+
+```verilog
+`timescale 1ns/1ps
+module clock_demo_tb;
+  reg clk = 0;
+  always #5 clk = ~clk;
+  initial begin
+    $display("simulation starts");
+    repeat (3) @(posedge clk);
+    $finish;
+  end
+endmodule
+```
+这个完整小例子只演示时钟与等待。反引号开头的 timescale 设置时间单位和精度，不是普通引号。每隔 5 ns 翻转时钟，因此周期 10 ns；repeat 等待三个上升沿，再结束。
+
+## 你在配套文件中会看到的语法
+| 写法 | 它在仿真中做什么 | 怎样读 |
+| initial begin ... end | 该过程从仿真开始执行一次 | 初始化与测试步骤 |
+| always #5 ... | 无限重复翻转时钟 | 测试时钟发生器 |
+| #1 | 等待一个时间单位 | 此处为 1 ns |
+| @(posedge clk) | 等到时钟上升沿 | 先等待，再执行后面语句 |
+| task ... endtask | 定义可重复调用的测试步骤 | 配套 tick 是测试作者起的名字 |
+| $display | 打印文本和数值 | %0d 十进制，%b 二进制 |
+| $fatal、$finish | 报错终止、正常结束 | 便于自动判断结果 |
+
+`$dumpfile` 与 `$dumpvars` 记录 VCD 波形；它们不产生被测电路的功能。`#` 延时、打印和任务中的等待在这里用于测试，不应直接当成一般可综合硬件的设计方式。
+
+## 配套 tick 为什么先等下降沿
+它在下降沿改变输入，下一上升沿由设计采样，再稍后检查输出。这样避免测试过程与寄存器更新在同一时刻互相争抢。task 是为减少重复测试代码，不意味着产生一块名叫 tick 的硬件。
+
+练习：时钟周期是 10 ns，执行 `repeat(2) @(posedge clk)` 表示等两个上升沿，还是把时钟周期改成 2 ns？答案：等两个上升沿。
+
+<!-- PAGE -->
+# 语法补充 V6：综合运用的小模块
+## 运行一次，把语法与波形连接起来
+
+配套 `syntax_basics.sv` 同时展示组合计算与寄存器更新；下面是其主要逻辑，接口见完整文件：a、b 是 8 位，op 是 2 位，y 是 8 位，sum_full 是 9 位，count 是 4 位。
+
+```verilog
+assign sum_full = {1'b0, a} + {1'b0, b};
+always @(*) begin
+  y = 8'd0;
+  case (op)
+    2'd0: y = a + b;
+    2'd1: y = a & b;
+    2'd2: y = {a[3:0], b[3:0]};
+    default: y = 8'd0;
+  endcase
+end
+always @(posedge clk) begin
+  if (reset) count <= 4'd0;
+  else if (enable) count <= count + 4'd1;
+end
+```
+
+设 a=8'hF0（240），b=8'h3C（60），先手算：
+| op | y 应是多少 | 原因 |
+| 0 | 8'h2C，即 44 | 300 存到 8 位，只保留低 8 位 |
+| 1 | 8'h30，即 48 | 按位与 |
+| 2 | 8'h0C，即 12 | a 的低四位放高半字节，b 的低四位放低半字节 |
+| 3 | 0 | 命中 default |
+sum_full 始终为 300，不受 op 影响。count 只在采样沿更新；组合计算 y 不必等待时钟。
+
+## 在已配置好的 VS Code 中运行
+“终端 → 运行任务 → 语法：Verilog 综合示例”，或在 WSL 的示例目录运行：
+```bash
+python3 run_examples.py rtl --example syntax_basics
+```
+完整仿真文件为 syntax_basics_tb.sv。预期 PASS，输出还说明检查了 262144 组组合输入及计数行为。波形写入 `.outputs/syntax_basics.vcd`。
+
+<!-- PAGE -->
+# 语法补充 V7：自测、答案与速查
+## 不看答案，先解释五处语法
+
+1. `wire [7:0] data` 为什么是 8 位？`data[3:0]` 又是多少位？
+2. a=4'b1010、b=4'b0101，a&b 和 a&&b 有何不同？
+3. `.enable(run)` 中，哪一个名字属于子模块，哪一个属于当前层？
+4. 给寄存器写 `if (q <= 8'd10) q <= q + 8'd1;`，两个 <= 分别是什么？
+5. 在组合 always 中只写 if、不写 else 或默认值，可能出现什么？
+6. 模块里有一个 for，就一定每个时钟只处理一个元素吗？
+
+## 参考答案
+1. 编号从 7 到 0 共 8 个；低四位取片得到 4 位。
+2. 按位与得到 4'b0000；逻辑与因两个操作数均非零而得到 1'b1。
+3. enable 是子模块端口，run 是本层信号。
+4. 圆括号里是大小比较，赋值位置是非阻塞赋值。
+5. 可能让输出保存旧值，推断无意的锁存器；应完整定义组合输出。
+6. 不一定。生成循环或可展开的组合逻辑可以形成并行硬件；逐周期处理要明确设计状态和时钟更新。
+
+## 写代码时的五步检查
+先标注端口和位宽；再区分组合输出与寄存器；为组合逻辑定义完整输出；为状态明确复位和更新条件；最后写仿真步骤并核对预期值。
+
+## 同一个错误不要只改报错行
+例如 “unknown module” 要检查模块定义是否加入编译；“port not found” 要核对点左边的端口名；位宽告警要检查丢弃高位是否符合需求。修正后重新保存、编译、运行。
+
+## 补充来源
+[V3] AMD Verilog 语言与过程：https://docs.amd.com/r/en-US/ug901-vivado-synthesis/Verilog-Language-Support
+
+[V4] AMD 参数说明：https://docs.amd.com/r/2025.1-English/ug901-vivado-synthesis/Verilog-Parameters
+
+本补充使用基础 Verilog 与少量 SystemVerilog；运行采用 -g2012 模式。零散片段说明假定已有接口，完整源文件才是直接运行入口。
