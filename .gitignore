@@ -1,0 +1,26 @@
+# Temporary files used while generating and checking study materials
+/tmp/
+
+# Scala / Chisel build caches
+.scala-build/
+.bsp/
+target/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Simulation outputs (source RTL and generated teaching RTL remain tracked)
+*.vvp
+*.vcd
+*.fst
+obj_dir/
+
+# Local credentials and operating system files
+.env
+.env.*
+!.env.example
+Thumbs.db
+.DS_Store
