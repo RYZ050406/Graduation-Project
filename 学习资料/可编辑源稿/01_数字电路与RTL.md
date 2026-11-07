@@ -222,18 +222,50 @@ if (count !== expected) $fatal(1, "counter mismatch");
 > PASS 表示这些被检查的情形通过。它不等于所有可能行为已经被证明正确，也不包含时序收敛与 FPGA 实测。
 
 <!-- PAGE -->
-# 1.7 运行 RTL 示例
-## Ubuntu / WSL 路径
+# 1.7 按操作系统准备仿真工具
+## macOS：终端 + Homebrew
 
-如果已经有 Ubuntu 或 WSL Ubuntu，在其中打开终端。安装 Icarus Verilog 需要下载软件并拥有相应系统权限；若安装暂时不便，先完成手算。
+先按 05 安装 Homebrew，再在 Mac 终端执行：
+```bash
+brew install python icarus-verilog
+```
+注意包名是 icarus-verilog，装好后命令名为 iverilog 与 vvp。Apple Silicon 与 Intel 使用自己的原生工具架构；不要手工复制 Windows 的可执行文件。[V2]
+
+## Windows：PowerShell 或 WSL
+如果已有原生 Icarus，确认 `Get-Command iverilog,vvp` 能找到两个工具，即可运行本册代码。没有原生工具可进入 WSL Ubuntu，按下方 Ubuntu 步骤准备。Windows 与 WSL 的命令分别在各自终端输入。
+
+## Ubuntu / WSL：Ubuntu 终端
 ```bash
 sudo apt update
-sudo apt install iverilog
-cd '/mnt/d/Projects/毕设/学习资料/配套示例'
+sudo apt install python3 iverilog
+```
+
+## 准备好后选自己的入口
+先进入“配套示例”目录，按系统任选一条：
+```powershell
+# Windows PowerShell
+py -3 run_examples.py rtl
+```
+```bash
+# macOS Terminal
+bash macOS/run_examples.sh rtl
+```
+```bash
+# Ubuntu / WSL Ubuntu
+bash Ubuntu-WSL/run_examples.sh rtl
+```
+三个入口都检查选择器、计数器、手写停止门与已附带的 Chisel 生成模块。仿真输出统一写入 `.outputs/`。完整定位目录和安装步骤见 05。
+
+<!-- PAGE -->
+# 1.7 运行并理解仿真结果
+## 编译与运行，三个系统使用同样的参数
+
+安装好 Icarus 并进入“配套示例”后，可以手工逐个运行：
+```text
 iverilog -g2012 -s counter4_tb -o counter4.vvp counter4.sv counter4_tb.sv
 vvp counter4.vvp
 ```
-原生 Linux 的目录换成自己的文件位置。Windows 原生安装 Icarus 后也可在对应目录执行最后两行。`iverilog` 负责编译设计与测试，`vvp` 执行仿真。[V1]
+Windows 在 PowerShell、macOS 在终端、Ubuntu 在 Ubuntu 终端运行上面的两行。`iverilog` 负责编译设计与测试，`vvp` 执行仿真。[V1]
 
 ## 命令逐项解释
 | 部分 | 含义 |
@@ -246,7 +278,7 @@ vvp counter4.vvp
 ```text
 PASS counter4: reset/hold/increment/wrap
 ```
-测试还会生成 `counter4.vcd`，这是波形记录文件。可选用 GTKWave 打开，观察 clk、reset、enable、count 的变化。没有波形查看器也可先读文本输出与逐拍表。
+手工命令在当前目录生成 `counter4.vcd` 波形文件；入口脚本运行则生成在 `.outputs/`。有兼容的波形查看器即可打开，观察 clk、reset、enable、count。没有查看器也可先读文本输出与逐拍表。
 
 选择器和安全门的运行方式相同，只需替换文件名和顶层名：
 ```bash
@@ -383,6 +415,8 @@ else if (enable && ________) count <= count + 4'd1;
 
 ## 阅读来源
 [V1] Icarus 入门：https://steveicarus.github.io/iverilog/usage/getting_started.html
+
+[V2] macOS Icarus 安装：https://formulae.brew.sh/formula/icarus-verilog
 
 [C3] Chisel 复位说明：https://www.chisel-lang.org/docs/explanations/reset
 

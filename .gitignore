@@ -17,6 +17,7 @@ venv/
 *.vcd
 *.fst
 obj_dir/
+.outputs/
 
 # Local credentials and operating system files
 .env

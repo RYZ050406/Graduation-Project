@@ -152,22 +152,23 @@ width 在生成时决定寄存器有几位；enable 在电路运行时决定是�
 ```
 这些以 `//>` 开头的行是 Scala CLI 指令，告诉工具下载什么依赖。普通 `//` 则是代码注释。第一次运行需要网络、下载依赖及 Java 环境，后续通常可利用缓存。
 
-## 安装入口
-Scala CLI 官方安装页提供 Windows 安装器、包管理器和 Linux 入口。建议使用已经熟悉的平台，完整入口见 [C6]。Windows 若有 WinGet，可在 PowerShell 使用官方列出的命令：
+## Windows：PowerShell
+WinGet 可用时，安装 Scala CLI：
 ```powershell
 winget install virtuslab.scalacli
 ```
-安装后重新打开终端，再检查：
-```text
-scala-cli version
-java -version
+## macOS：终端
+先按 05 安装 Homebrew，再安装 Scala CLI：
+```bash
+brew install scala-cli
 ```
-Scala CLI 可以管理所需 JDK。若版本或下载报错，先参考官方安装页，不必同时安装 SBT、Mill 和完整 Chipyard。
+## Ubuntu / WSL：Ubuntu 终端
+按 [C6] 的 Linux 安装步骤准备 Scala CLI，已有安装可直接使用。三个系统安装后均以 `scala-cli version` 检查，首次依赖下载需要网络。
 
-## 先做官方烟雾测试，可选
-官方 Chisel 安装页提供 `chisel-example.scala` 单文件示例。下载后执行 `scala-cli chisel-example.scala`，可以先验证网络、依赖与基础工具链。[C2]
+## 同一组教学依赖
+本套入口指定 `--jvm 21`，让 Scala CLI 管理 Java 21，减少跟随系统默认 JDK 变化引起的问题。当前终端中 `java -version` 不成功，也不必然说明 Scala CLI 管理的 JDK 不可用。
 
-> Chisel 在 Windows 上的后端工具支持可能比纯 Scala 程序复杂；若生成后端报平台问题，可以转到已有的 WSL 环境。资料中的 Windows Python 练习不依赖这一步。
+> macOS 用原生架构的工具，Windows 后端不支持时可转 WSL。各系统完整步骤和报错处理见 05，不需要同时安装 SBT、Mill 和完整 Chipyard。[C2][C6]
 
 <!-- PAGE -->
 # 2.5 生成自己的安全门 RTL
@@ -186,8 +187,9 @@ io.allow := io.request && io.authorized && !stopped
 
 在配套目录运行：
 ```bash
-scala-cli run chisel_project.scala SafetyGate.scala --main-class EmitSafetyGate
+scala-cli run chisel_project.scala SafetyGate.scala --main-class EmitSafetyGate --jvm 21
 ```
+上面的命令在三系统安装好工具后均适用；也可用 05 的分系统入口并把末尾参数改成 chisel。
 入口中的 `ChiselStage.emitSystemVerilog` 把电路生成成 SystemVerilog 字符串，再打印到终端。示例关闭了后端随机初始化附加代码，便于用 Icarus 检查；寄存器仍应按规范复位。结果应包含 clock、reset、请求与授权端口、stopped 寄存器及 allow 逻辑。
 
 ## 不要只找“一模一样的一行代码”

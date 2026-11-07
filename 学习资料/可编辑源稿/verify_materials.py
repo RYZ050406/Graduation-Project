@@ -45,8 +45,9 @@ def check_pdfs():
                     raise AssertionError(f"Character outside margins: {path.name}/{number}: {bad[:3]}")
         results.append({"file": path.name, "pages": len(reader.pages),
                         "bytes": path.stat().st_size, "outlines": len(reader.outline)})
-    if len(results) != 6:
-        raise AssertionError(f"Expected 6 PDFs, got {len(results)}")
+    expected_count = len(list(Path(__file__).resolve().parent.glob("[0-9][0-9]_*.md"))) + 1
+    if len(results) != expected_count:
+        raise AssertionError(f"Expected {expected_count} PDFs, got {len(results)}")
     return results
 
 
