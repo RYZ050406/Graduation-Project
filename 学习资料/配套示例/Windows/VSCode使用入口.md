@@ -1,5 +1,7 @@
 # 这台 Windows 电脑的 VS Code 仿真入口
 
+完整的组件、版本、文件位置和日常流程见 [当前开发环境说明](../../当前开发环境说明.md)。本页保留快速操作与最初安装记录，最新核对日期以环境说明为准。
+
 环境安装在 WSL 的 Ubuntu-24.04 中。Windows 上的 VS Code 负责编辑，Icarus / Verilator 执行仿真，GTKWave 查看波形，Scala CLI 与 Java 21 生成 Chisel RTL。
 
 ## 每次怎么打开

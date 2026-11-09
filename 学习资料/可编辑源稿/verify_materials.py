@@ -46,7 +46,8 @@ def check_pdfs():
         results.append({"file": path.name, "pages": len(reader.pages),
                         "bytes": path.stat().st_size, "outlines": len(reader.outline)})
     expected_count = (len(list(Path(__file__).resolve().parent.glob("[0-9][0-9]_*.md")))
-                      + len(list(ROOT.glob("五天基础学习资料_合订本*.pdf"))))
+                      + len(list(ROOT.glob("五天基础学习资料_合订本*.pdf")))
+                      + sum(path.with_suffix(".pdf").exists() for path in ROOT.glob("*.md")))
     if len(results) != expected_count:
         raise AssertionError(f"Expected {expected_count} PDFs, got {len(results)}")
     return results
